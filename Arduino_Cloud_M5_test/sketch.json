@@ -1,0 +1,22 @@
+{
+  "cpu": {
+    "fqbn": "esp32:esp32:m5stack-atom:DebugLevel=none,PartitionScheme=default,UploadSpeed=1500000",
+    "name": "M5Stack-ATOM",
+    "type": "serial"
+  },
+  "secrets": [
+    {
+      "name": "SECRET_SSID",
+      "value": "BELL566"
+    },
+    {
+      "name": "SECRET_PASS",
+      "value": "6EC5365DC93F"
+    },
+    {
+      "name": "SECRET_DEVICE_KEY",
+      "value": "6FRTZ9SSAUPTQUISNFN4"
+    }
+  ],
+  "included_libs": []
+}
