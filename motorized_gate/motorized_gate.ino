@@ -214,7 +214,7 @@ void loop()
         if (newly_set_speed > 0)
         {
             // set_speed(+0.5 + 0.6 * (ANGLE_MAX_DEG - angle_deg) / (ANGLE_MAX_DEG - start_angle_deg));
-            if (angle_deg > ANGLE_MAX_DEG - 15)
+            if (angle_deg > ANGLE_MAX_DEG - ANGLE_THRES_DEG)
             {
                 set_speed(+LO_SPEED);
             }
@@ -226,7 +226,7 @@ void loop()
         else if (newly_set_speed < 0)
         {
             // set_speed(-0.5 - 0.6 * (angle_deg - ANGLE_MIN_DEG) / (start_angle_deg - ANGLE_MIN_DEG));
-            if (angle_deg < ANGLE_MIN_DEG + 15)
+            if (angle_deg < ANGLE_MIN_DEG + ANGLE_THRES_DEG)
             {
                 set_speed(-LO_SPEED);
             }
@@ -309,6 +309,9 @@ void continue_setting_speed()
 {
     if (currently_set_speed * newly_set_speed <= 0)
     {
+        // If the currently and newly set speeds have opposite signs,
+        // or if either are zero...
+
         if (newly_set_speed > 0)
         {
             // If the newly set speed is positive and nonzero,
