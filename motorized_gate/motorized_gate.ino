@@ -38,11 +38,15 @@ bool  open_button_rising_edge;
 bool close_button_falling_edge;
 bool  open_button_falling_edge;
 
+#define IR_BREAK_BEAM_SENSOR_PIN 21 // Pin for infrared break-beam sensor.
+
+bool ir_break_beam_sensor = false;
+
 #define ENC_PIN_A 22 // Pin for Encoder Channel A.
 #define ENC_PIN_B 19 // Pin for Encoder Channel B.
 
 bool enc_calibrated = false;
-const float ANGLE_THRES_DEG = 5;
+const float ANGLE_THRES_DEG = 15;
 
 bool old_enc_state_A; // Old Encoder Channel A signal.
 bool old_enc_state_B; // Old Encoder Channel B signal.
@@ -61,7 +65,7 @@ void setup()
 {
     relays.channelCtrl(0); // Turns off all channels.
 
-    Serial.begin(9600);
+    Serial.begin(115200);
 
     my_esc.arm();
 
@@ -93,54 +97,94 @@ void loop()
     close_button_falling_edge = close_button_old_state & !close_button_new_state;
      open_button_falling_edge =  open_button_old_state & ! open_button_new_state;
 
+    ir_break_beam_sensor = !digitalRead(IR_BREAK_BEAM_SENSOR_PIN);
+
     if ((currently_set_speed > 0) & (close_button_rising_edge | open_button_falling_edge))
+    // Otherwise, if the door is opening and either the close button has just been pressed (as the opening limit switch) or the open button has just been unpressed (by a user, for a second time):
     {
         if (close_button_rising_edge)
+        // If the close button has just been pressed (as the opening limit switch):
         {
             if (!enc_calibrated | (enc_calibrated & (ANGLE_MAX_DEG - angle_deg < ANGLE_THRES_DEG)))
+            // If the rotary encoder is not yet calibrated or the door can be confirmed to be in an almost fully open state:
             {
+                // Get the updated encoder states:
                 new_enc_state_A = digitalRead(ENC_PIN_A);
                 new_enc_state_B = digitalRead(ENC_PIN_B);
+                // (Re-)Calibrate the encoder:
                 angle_deg = ANGLE_MAX_DEG;
-                enc_calibrated = true;
+                enc_calibrated = true; // This only changes enc_calibrated from false when calibrated for the first time.
             }
         }
-        set_speed(0);
+
+        if (!enc_calibrated | !(angle_deg - ANGLE_MIN_DEG < ANGLE_THRES_DEG))
+        // If the rotary encoder is not yet calibrated or the door can be confirmed to not be in an almost fully closed state:
+        {
+            // Stop the door opening:
+            set_speed(0);
+        }
     }
     else if ((currently_set_speed < 0) & (open_button_rising_edge | close_button_falling_edge))
+    // Otherwise, if the door is closing and either the open button has just been pressed (as the closing limit switch) or the close button has just been unpressed (by a user, for a second time):
     {
         if (open_button_rising_edge)
+        // If the open button has just been pressed (as the closing limit switch):
         {
             if (!enc_calibrated | (enc_calibrated & (angle_deg - ANGLE_MIN_DEG < ANGLE_THRES_DEG)))
+            // If the rotary encoder is not yet calibrated or the door can be confirmed to be in an almost fully clos state:
             {
+                // Get the updated encoder states:
                 new_enc_state_A = digitalRead(ENC_PIN_A);
                 new_enc_state_B = digitalRead(ENC_PIN_B);
+                // (Re-)Calibrate the encoder:
                 angle_deg = ANGLE_MIN_DEG;
-                enc_calibrated = true;
+                enc_calibrated = true; // This only changes enc_calibrated from false when calibrated for the first time.
             }
         }
+
+        // Stop the door closing:
         set_speed(0);
     }
     else if (currently_set_speed == 0)
+    // If the door is neither opening nor closing:
     {
-        if (!open_button_new_state & close_button_falling_edge)
+        if (close_button_falling_edge & !open_button_new_state)
+        // If the close button has just been unpressed (after being pressed by a user),
+        // while the open button is not pressed down as the closing limit switch:
         {
+            // Start closing the door:
             set_speed(-LO_SPEED);
             start_angle_deg = angle_deg;
         }
-        else if (!close_button_new_state & open_button_falling_edge)
+        else if (open_button_falling_edge & !close_button_new_state)
+        // Otherwise, if the open button has just been unpressed (after being pressed by a user),
+        // while the close button is not pressed down as the opening limit switch:
         {
+            // Start opening the door:
+            set_speed(+LO_SPEED);
+            start_angle_deg = angle_deg;
+        }
+
+        // if ((ir_break_beam_sensor == 1) & !close_button_new_state) // If the IR break-beam sensor is triggered by a user and the door is not fully open:
+        if ((ir_break_beam_sensor == 1) & open_button_new_state) // If the IR break-beam sensor is triggered by a user and the door is fully closed:
+        {
+            Serial.println("Here!");
+            // Start opening the door:
             set_speed(+LO_SPEED);
             start_angle_deg = angle_deg;
         }
     }
+
     if (still_setting_speed & ((millis() - rundown_start_time_ms) > RUNDOWN_TIME_MS))
     {
         continue_setting_speed();
         still_setting_speed = false;
     }
+
     if (enc_calibrated)
     {
+        // TODO: Only allow encoder to be updated in the direction of the motor?
+
         old_enc_state_A = new_enc_state_A;
         old_enc_state_B = new_enc_state_B;
     
@@ -152,18 +196,21 @@ void loop()
         {
             angle_deg += 0.5;
         }
+    
         if ((old_enc_state_A && new_enc_state_B || !old_enc_state_A && !new_enc_state_B) &&
             (!old_enc_state_B && new_enc_state_A || old_enc_state_B && !new_enc_state_A))
         {
             angle_deg -= 0.5;
         }
+    
              if (angle_deg < ANGLE_MIN_DEG) {angle_deg = ANGLE_MIN_DEG;}
         else if (angle_deg > ANGLE_MAX_DEG) {angle_deg = ANGLE_MAX_DEG;}
 
-        if (Serial.availableForWrite() >= 6)
-        {
-            Serial.println(angle_deg);
-        }
+        // if (Serial.availableForWrite() >= 6)
+        // {
+        //     Serial.println(angle_deg);
+        // }
+    
         if (newly_set_speed > 0)
         {
             // set_speed(+0.5 + 0.6 * (ANGLE_MAX_DEG - angle_deg) / (ANGLE_MAX_DEG - start_angle_deg));
@@ -189,6 +236,24 @@ void loop()
             }
         }
     }
+
+    Serial.print("ir_break_beam_sensor = ");
+    Serial.print(ir_break_beam_sensor);
+    Serial.print(", ");
+    Serial.print("currently_set_speed = ");
+    Serial.print(currently_set_speed);
+    Serial.print(", ");
+    Serial.print("open_button_falling_edge = ");
+    Serial.print(open_button_falling_edge);
+    Serial.print(", ");
+    Serial.print("enc_calibrated = ");
+    Serial.print(enc_calibrated);
+    Serial.print(", ");
+    Serial.print("angle_deg = ");
+    Serial.print(angle_deg);
+    Serial.print(", ");
+    Serial.print("\r\n");
+
     delay(10);
 }
 
@@ -239,6 +304,7 @@ void set_speed(float _newly_set_speed)
         }
     }
 }
+
 void continue_setting_speed()
 {
     if (currently_set_speed * newly_set_speed <= 0)
@@ -269,6 +335,7 @@ void continue_setting_speed()
             // This does not turn off the relay module itself.
         }
     }
+
     // Apply the newly set speed using the ESC:
     my_esc.speed(MIN_PULSE + (MAX_PULSE - MIN_PULSE) * abs(newly_set_speed));
 
