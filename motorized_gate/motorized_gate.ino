@@ -18,11 +18,13 @@ unsigned long rundown_start_time_ms = 0;
 float newly_set_speed;
 const float LO_SPEED = 0.6;
 const float HI_SPEED = 1.0;
+const float MIN_SPEED = 0;
+const float MAX_SPEED = 1;
 void set_speed(float _newly_set_speed);
 void continue_setting_speed();
 
-#define close_button_PIN 23
-#define  open_button_PIN 33
+#define CLOSE_BUTTON_PIN 23
+#define  OPEN_BUTTON_PIN 33
 
 bool close_button_old_state;
 bool  open_button_old_state;
@@ -63,11 +65,11 @@ void setup()
 
     my_esc.arm();
 
-    pinMode(close_button_PIN, INPUT_PULLUP);
-    pinMode( open_button_PIN, INPUT_PULLUP);
+    pinMode(CLOSE_BUTTON_PIN, INPUT_PULLUP);
+    pinMode( OPEN_BUTTON_PIN, INPUT_PULLUP);
 
-    close_button_new_state = !digitalRead(close_button_PIN);
-     open_button_new_state = !digitalRead( open_button_PIN);
+    close_button_new_state = !digitalRead(CLOSE_BUTTON_PIN);
+     open_button_new_state = !digitalRead( OPEN_BUTTON_PIN);
 
     pinMode(ENC_PIN_A, INPUT_PULLUP);
     pinMode(ENC_PIN_B, INPUT_PULLUP);
@@ -82,8 +84,8 @@ void loop()
     close_button_old_state = close_button_new_state;
      open_button_old_state =  open_button_new_state;
 
-    close_button_new_state = !digitalRead(close_button_PIN);
-     open_button_new_state = !digitalRead( open_button_PIN);
+    close_button_new_state = !digitalRead(CLOSE_BUTTON_PIN);
+     open_button_new_state = !digitalRead( OPEN_BUTTON_PIN);
 
     close_button_rising_edge = !close_button_old_state & close_button_new_state;
      open_button_rising_edge = ! open_button_old_state &  open_button_new_state;
