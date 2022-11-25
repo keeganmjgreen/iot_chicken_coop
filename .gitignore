@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.vscode/
+*.lnk
+*secrets.h
+notes.md
+tmp/
