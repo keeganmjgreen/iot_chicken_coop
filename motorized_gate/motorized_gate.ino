@@ -16,12 +16,13 @@ float currently_set_speed = 0;
 bool still_setting_speed = false;
 unsigned long rundown_start_time_ms = 0;
 float newly_set_speed;
-const float LO_SPEED = 0.6;
-const float HI_SPEED = 1.0;
 const float MIN_SPEED = 0;
 const float MAX_SPEED = 1;
+const float LO_SPEED = 0.2;
+const float HI_SPEED = MAX_SPEED;
 void set_speed(float _newly_set_speed);
 void continue_setting_speed();
+void arm_esc();
 
 #define CLOSE_BUTTON_PIN 23
 #define  OPEN_BUTTON_PIN 33
@@ -46,7 +47,7 @@ bool ir_break_beam_sensor = false;
 #define ENC_PIN_B 19 // Pin for Encoder Channel B.
 
 bool enc_calibrated = false;
-const float ANGLE_THRES_DEG = 15;
+const float ANGLE_THRES_DEG = 20;
 
 bool old_enc_state_A; // Old Encoder Channel A signal.
 bool old_enc_state_B; // Old Encoder Channel B signal.
@@ -77,6 +78,9 @@ void setup()
 
     pinMode(ENC_PIN_A, INPUT_PULLUP);
     pinMode(ENC_PIN_B, INPUT_PULLUP);
+
+    // Automatically arm the ESC:
+    arm_esc();
 }
 void loop()
 {
@@ -168,7 +172,6 @@ void loop()
         // if ((ir_break_beam_sensor == 1) & !close_button_new_state) // If the IR break-beam sensor is triggered by a user and the door is not fully open:
         if ((ir_break_beam_sensor == 1) & open_button_new_state) // If the IR break-beam sensor is triggered by a user and the door is fully closed:
         {
-            Serial.println("Here!");
             // Start opening the door:
             set_speed(+LO_SPEED);
             start_angle_deg = angle_deg;
@@ -237,6 +240,7 @@ void loop()
         }
     }
 
+    /*
     Serial.print("ir_break_beam_sensor = ");
     Serial.print(ir_break_beam_sensor);
     Serial.print(", ");
@@ -246,6 +250,7 @@ void loop()
     Serial.print("open_button_falling_edge = ");
     Serial.print(open_button_falling_edge);
     Serial.print(", ");
+    */
     Serial.print("enc_calibrated = ");
     Serial.print(enc_calibrated);
     Serial.print(", ");
@@ -275,16 +280,11 @@ void set_speed(float _newly_set_speed)
     
             // First, set the speed to zero using the ESC
             // (if the currently set speed is not already zero):
-            my_esc.speed(MIN_PULSE);
-            delay(10);
-            my_esc.speed(MIN_PULSE);
-            delay(10);
-            my_esc.speed(MIN_PULSE);
-            delay(10);
-            my_esc.speed(MIN_PULSE);
-            delay(10);
-            my_esc.speed(MIN_PULSE);
-    
+            for (int i = 0; i < 10; i++)
+            {
+                my_esc.speed(MIN_PULSE);
+                delay(10);
+            }
             // Next, wait for the motor to physically stop:
             if (currently_set_speed != 0)
             {
@@ -344,4 +344,14 @@ void continue_setting_speed()
 
     currently_set_speed = newly_set_speed;
     // The currently set speed is the newly set speed.
+}
+
+void arm_esc()
+{
+    set_speed(MAX_SPEED);
+    delay(6000);
+    set_speed(MIN_SPEED);
+    delay(RUNDOWN_TIME_MS);
+    continue_setting_speed();
+    still_setting_speed = false;
 }
