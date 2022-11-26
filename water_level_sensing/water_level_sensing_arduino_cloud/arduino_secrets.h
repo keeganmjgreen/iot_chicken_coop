@@ -1,3 +1,0 @@
-#define SECRET_SSID "James Nena"
-#define SECRET_PASS "isaj4tiz"
-#define SECRET_DEVICE_KEY "6FRTZ9SSAUPTQUISNFN4"
